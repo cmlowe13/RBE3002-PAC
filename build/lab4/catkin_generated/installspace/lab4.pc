@@ -1,8 +1,0 @@
-prefix=/home/elfenari/RBE3002-PAC/install
-
-Name: lab4
-Description: Description of lab4
-Version: 0.0.0
-Cflags: 
-Libs: -L/home/elfenari/RBE3002-PAC/install/lib 
-Requires: 

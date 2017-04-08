@@ -1,2 +1,0 @@
-lab4
--DCATKIN_DEVEL_PREFIX=/home/elfenari/RBE3002-PAC/devel -DCMAKE_INSTALL_PREFIX=/home/elfenari/RBE3002-PAC/install -G Unix Makefiles
