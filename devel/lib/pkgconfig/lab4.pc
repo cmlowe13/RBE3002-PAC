@@ -1,0 +1,8 @@
+prefix=/home/elfenari/RBE3002-PAC/devel
+
+Name: lab4
+Description: Description of lab4
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/elfenari/RBE3002-PAC/devel/lib 
+Requires: 

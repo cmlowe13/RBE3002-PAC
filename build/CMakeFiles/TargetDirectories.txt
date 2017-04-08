@@ -1,0 +1,8 @@
+/home/elfenari/RBE3002-PAC/build/lab4/CMakeFiles/_catkin_empty_exported_target.dir
+/home/elfenari/RBE3002-PAC/build/CMakeFiles/clean_test_results.dir
+/home/elfenari/RBE3002-PAC/build/CMakeFiles/download_extra_data.dir
+/home/elfenari/RBE3002-PAC/build/CMakeFiles/doxygen.dir
+/home/elfenari/RBE3002-PAC/build/gtest/CMakeFiles/gtest.dir
+/home/elfenari/RBE3002-PAC/build/gtest/CMakeFiles/gtest_main.dir
+/home/elfenari/RBE3002-PAC/build/CMakeFiles/run_tests.dir
+/home/elfenari/RBE3002-PAC/build/CMakeFiles/tests.dir
