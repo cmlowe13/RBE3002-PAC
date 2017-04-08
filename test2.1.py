@@ -136,7 +136,7 @@ def timerCallback(event):
 # This is the program's main function
 if __name__ == '__main__':
 
-	rospy.init_node('coshea_Lab_2_node') #initialized ROS nodee
+	rospy.init_node('apappas_Lab_2_node') #initialized ROS nodee
 
 	# Globals to define publishers and pose/odometry
 	global pub
