@@ -29,16 +29,16 @@ window
 
 floorplan
 (
-  name "map"
-  bitmap "map.pgm"
-  size [ 11.52 10.24 2.0 ]
-  pose [  5.0  5.0 0.0 0.0 ]
+  name "simple_map"
+  bitmap "simple_map.pgm"
+  size [ 11.1 11.1 2.0 ]
+  pose [  5.550  5.550 0.0 0.0 ]
 )
 
 # throw in a robot
 turtlebot
 (
-  pose [ 5.0 5.0 0.0 0.0 ]
+  pose [ 1.0 2.0 0.0 0.0 ]
   name "turtlebot"
   color "black"
   #Shape of robot
