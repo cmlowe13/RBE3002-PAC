@@ -35,29 +35,36 @@ def buildNodes():
 			xi = xi + 1
 
 def buffering():
-	global nodes
+	global nodes, grid, buffer_pts
+	buffer_pts = []
+	ngrid = [0] * len(grid.data)
 	oldnodes = nodes
-	for current in nodes:
-		for n in oldnodes:
-			if not (n.x == current.x + 1 and n.y == current.y):
-				nodes.append(Node(current.x +1, current.y))
-			if not (n.x == current.x - 1 and n.y == current.y):
-				nodes.append(Node(current.x +1, current.y))
-			if not (n.y == current.y + 1 and n.x == current.x):
-				nodes.append(Node(current.x +1, current.y))
-			if not (n.y == current.y - 1 and n.x == current.x):
-				nodes.append(Node(current.x +1, current.y))
+	for x in range(grid.info.width):
+		for y in range(grid.info.height):
+			if (grid.data [x + y *grid.info.width]== -1):
+				ngrid[x +y * grid.info.width] == -1
+			if (grid.data [x +y *grid.info.width] == 100):
+				for rx in range(2):
+					for ry in range(2):
+						ngrid = addAround(ngrid,x +rx, y +ry)
+						ngrid = addAround(ngrid,x -rx, y +ry)
+						ngrid = addAround(ngrid,x +rx, y -ry)
+						ngrid = addAround(ngrid,x -rx, y -ry)
+	return ngrid
 
-def colored():
-	global nodes
-	gridCells = GridCells()
-	for node in nodes:
-		p = Point()
-		p.x = node.x
-		p.y = node.y
-		p.z = 0
-		gridCells.cells.append(p)
-	bufferPub.publish(gridCells)
+def addAround(n, x, y):
+	global ngrid
+	global buffer_pts
+	if (x < 0 or y < 0 or x >= grid.info.width or y >= grid.info.height):
+		return n
+	p = Point()
+	p.x = x
+	p.y = y
+	buffer_pts.append(p)
+	n[x + y * grid.info.width] = 100
+	return n
+
+
 
 def mapCallback(occupancy):
 	global grid
@@ -70,14 +77,15 @@ if __name__=='__main__':
 	global grid,nodes,bufferPub
 	grid = OccupancyGrid()
 	rospy.Subscriber('/map',OccupancyGrid, mapCallback)
-	bufferPub = rospy.Publisher('/buffer_color',GridCells, queue_size = 1)
+	bufferPub = rospy.Publisher('/buffermap',OccupancyGrid, queue_size = 1)
 
 	
 	rospy.sleep(.5)
 	print("building")
 	buildNodes()
 	print("buffering")
-	buffering()
-	print("coloring")
-	colored()
+	returngrid = OccupancyGrid()
+	returngrid.info = grid.info
+	returngrid.data = buffering()
+	bufferPub.publish(returngrid)
 	print("done")

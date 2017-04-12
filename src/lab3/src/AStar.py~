@@ -151,7 +151,7 @@ if __name__=='__main__':
 	global grid,nodes,pathPub,frontPub,state,start
 	grid = OccupancyGrid()
 	state = 0
-	rospy.Subscriber('/buffermap',OccupancyGrid, mapCallback)
+	rospy.Subscriber('/map',OccupancyGrid, mapCallback)
 	rospy.Subscriber('/clicked_point',PointStamped,clickCallback)
 	pathPub = rospy.Publisher('map_color',GridCells, queue_size = 1)
 	frontPub = rospy.Publisher('front_color',GridCells, queue_size = 1)
