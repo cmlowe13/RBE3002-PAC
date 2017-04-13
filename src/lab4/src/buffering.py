@@ -78,14 +78,15 @@ if __name__=='__main__':
 	grid = OccupancyGrid()
 	rospy.Subscriber('/map',OccupancyGrid, mapCallback)
 	bufferPub = rospy.Publisher('/buffermap',OccupancyGrid, queue_size = 1)
-
-	
 	rospy.sleep(.5)
+
 	print("building")
 	buildNodes()
 	print("buffering")
 	returngrid = OccupancyGrid()
 	returngrid.info = grid.info
 	returngrid.data = buffering()
-	bufferPub.publish(returngrid)
+	returngrid.header.frame_id = grid.header.frame_id
 	print("done")
+	while not rospy.is_shutdown():
+		bufferPub.publish(returngrid)

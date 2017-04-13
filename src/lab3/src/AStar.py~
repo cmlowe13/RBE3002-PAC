@@ -15,7 +15,7 @@ class Node:
 		self.gCost = 0
 
 	def setFCost(self,goal):
-		self.fCost = self.gCost + (goal.x-self.x)**2 + (goal.y-self.y)**2
+		self.fCost = self.gCost + (math.sqrt((self.x-goal.x)**2 + (self.y-goal.y)**2))
 		return self.fCost
 
 	def setCameFrom(self,x):
@@ -47,7 +47,8 @@ def reconstruct_path(node):
 	return path
 
 def astar(start, end):
-	global nodes,frontPub
+	global nodes,frontPub, closedPub,grid
+	print(start.x,start.y,end.x,end.y)
 	closedSet = []
 	openSet = []
 	openSet.insert(0,start)
@@ -57,8 +58,8 @@ def astar(start, end):
 
 	while(openSet):
 		gridCells = GridCells()
-		gridCells.cell_width = 1
-		gridCells.cell_height = 1
+		gridCells.cell_width = grid.info.resolution
+		gridCells.cell_height = grid.info.resolution
 		gridCells.header.frame_id = 'map'
 		gridCells.cells = [];
 		for node in openSet:
@@ -68,17 +69,29 @@ def astar(start, end):
 			p.z = 0
 			gridCells.cells.append(p)
 		frontPub.publish(gridCells)
+		gridCells = GridCells()
+		gridCells.cell_width = grid.info.resolution
+		gridCells.cell_height = grid.info.resolution
+		gridCells.header.frame_id = 'map'
+		gridCells.cells = [];
+		for node in closedSet:
+			p = Point()
+			p.x = node.x + .5*grid.info.resolution
+			p.y = node.y
+			p.z = 0
+			gridCells.cells.append(p)
+		closedPub.publish(gridCells)
+
 		lowest = 99999
 		for n in openSet:
 			if(n.setFCost(end)<=lowest):
+				print(n.x,n.y,n.gCost)
 				lowest = n.fCost
 				current = n
-		
+		print("loop")
+		openSet = [n for n in openSet if not(n.x == current.x and n.y == current.y)]
 		if current.x == end.x and current.y == end.y:
 			return reconstruct_path(current)
-
-		openSet = [n for n in openSet if n.x != current.x and n.y != current.y]
-		closedSet.append(current)
 		neighbors = []
 		for n in nodes:
 			if n.x == current.x + 1 and n.y == current.y:
@@ -90,16 +103,14 @@ def astar(start, end):
 			if n.y == current.y - 1 and n.x == current.x:
 				neighbors.append(n)
 		for n in neighbors:
-			if [item for item in closedSet if item.x ==n.x and item.y == n.y]:
-				continue
-			tempCost = current.gCost + 1
-			if not [item for item in openSet if item.x ==n.x and item.y == n.y]:
+			if [item for item in closedSet if (item.x == n.x and item.y == n.y)]:
+				1+1
+			else:
+				n.setCameFrom(current)
+				n.gCost = current.gCost + 1
+				n.setFCost(end)		
 				openSet.append(n)
-			elif tempCost >= n.gCost:
-				continue
-			n.setCameFrom(current)
-			n.gCost = tempCost
-			n.setFCost(end)
+		closedSet.append(current)
 
 	return 0
 
@@ -111,36 +122,38 @@ def mapCallback(occupancy):
 	grid = occupancy
 
 def clickCallback(click):
-	global state,pathPub,start
+	global state,pathPub,start,frontPub,closedPub
 	if state == 0:
 		start = Node(int(click.point.x),int(click.point.y))
 		state = 1
 	elif state == 1:
 		path = astar(start,Node(int(click.point.x),int(click.point.y)))
 		gridCells = GridCells()
-		gridCells.cell_width = 1
-		gridCells.cell_height = 1
+		gridCells.cell_width = grid.info.resolution
+		gridCells.cell_height = grid.info.resolution
 		gridCells.header.frame_id = 'map'
 		gridCells.cells = [];
 		if path == 0:
 			print "No Path"
-			raise SystemExit(0)
-		for node in path:
-			p = Point()
-			p.x = node.x
-			p.y = node.y
-			p.z = 0
-			gridCells.cells.append(p)
-		pathPub.publish(gridCells)
-		state = 2
+			state = 0
+		else:
+			for node in path:
+				p = Point()
+				p.x = node.x
+				p.y = node.y
+				p.z = 0
+				gridCells.cells.append(p)
+			pathPub.publish(gridCells)
+			state = 2
 	elif state == 2:
 		gridCells = GridCells()
-		gridCells.cell_width = 1
-		gridCells.cell_height = 1
+		gridCells.cell_width = grid.info.resolution
+		gridCells.cell_height = grid.info.resolution
 		gridCells.header.frame_id = 'map'
 		gridCells.cells = [];
 		pathPub.publish(gridCells)
 		frontPub.publish(gridCells)
+		closedPub.publish(gridCells)
 		state = 0
 
 
@@ -148,13 +161,14 @@ def clickCallback(click):
 if __name__=='__main__':
 	rospy.init_node('astar_node')
 
-	global grid,nodes,pathPub,frontPub,state,start
+	global grid,nodes,pathPub,frontPub,state,start,closedPub
 	grid = OccupancyGrid()
 	state = 0
-	rospy.Subscriber('/map',OccupancyGrid, mapCallback)
+	rospy.Subscriber('/buffermap',OccupancyGrid, mapCallback)
 	rospy.Subscriber('/clicked_point',PointStamped,clickCallback)
 	pathPub = rospy.Publisher('map_color',GridCells, queue_size = 1)
 	frontPub = rospy.Publisher('front_color',GridCells, queue_size = 1)
+	closedPub = rospy.Publisher('closed_color',GridCells, queue_size = 1)
 	
 
 	rospy.sleep(.5)

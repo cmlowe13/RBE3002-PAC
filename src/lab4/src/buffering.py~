@@ -56,7 +56,7 @@ def addAround(n, x, y):
 	global ngrid
 	global buffer_pts
 	if (x < 0 or y < 0 or x >= grid.info.width or y >= grid.info.height):
-`		return n
+		return n
 	p = Point()
 	p.x = x
 	p.y = y
@@ -78,14 +78,15 @@ if __name__=='__main__':
 	grid = OccupancyGrid()
 	rospy.Subscriber('/map',OccupancyGrid, mapCallback)
 	bufferPub = rospy.Publisher('/buffermap',OccupancyGrid, queue_size = 1)
-
-	
 	rospy.sleep(.5)
+
 	print("building")
 	buildNodes()
 	print("buffering")
 	returngrid = OccupancyGrid()
 	returngrid.info = grid.info
 	returngrid.data = buffering()
-	bufferPub.publish(returngrid)
-	print("done")
+	returngrid.header.frame_id = grid.header.frame_id
+	while not rospy.is_shutdown():
+		print("done")
+		bufferPub.publish(returngrid)
