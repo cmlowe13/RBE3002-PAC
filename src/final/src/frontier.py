@@ -40,20 +40,77 @@ def buildNodes():
 			xi = xi + 1
 
 def getFront():
-	global nodes,frontPub
+	global nodes,frontPub, frontier
 	gridCells = GridCells()
 	gridCells.cell_width = 1
 	gridCells.cell_height = 1
 	gridCells.header.frame_id = 'map'
 	gridCells.cells = [];
-	for x in range(50):
-		if 1 == 1:
-			p = Point()
-			p.x = x
-			p.y = 0
-			p.z = 0
-			gridCells.cells.append(p)
+	frontier = [];
+	for node in nodes:
+		if node.type == 2:
+			neighbors = getNeighbors(nodes,node)
+			for n in neighbors:
+				if n.type == 0:
+					p = Point()
+					p.x = node.x
+					p.y = node.y
+					p.z = 0
+					gridCells.cells.append(p)
+					frontier.append(node)
 	frontPub.publish(gridCells)
+
+class Blob:
+	def __init__(self):
+		self.size = 0
+		self.nodes = []
+
+	def add(self,node):
+		self.size = self.size + 1
+		self.nodes.append(node)
+
+	def addAll(self,nodes):
+		for n in nodes:
+			self.add(n)
+
+	def getCentroid(self):
+		sumX = numpy.sum([n.x for n in self.nodes])
+		sumY = numpy.sum([n.y for n in self.nodes])
+		return sumX/self.size,sumY/self.size
+
+def blobFront():
+	global frontier,blobs
+	toSearch = frontier
+	while len(toSearch):
+		node = toSearch.pop()
+		blobList = getConnected(toSearch,node)
+		toSearch = [x for x in toSearch if x not in blobList]
+		blob = Blob()
+		blob.addAll(blobList)
+		blobs.append(blob)
+	print blobs
+
+
+def getConnected(list,node):
+	toReturn = []
+	for n in getNeighbors(list,node):
+		list.remove(n)
+		toReturn.append(getConnected(list,n))
+	return toReturn
+
+def getNeighbors(list,node):
+	neighbors = []
+	for n in list:
+		if n.x == node.x + 1 and n.y == node.y:
+			neighbors.append(n)
+		if n.x == node.x - 1 and n.y == node.y:
+			neighbors.append(n)
+		if n.y == node.y + 1 and n.x == node.x:
+			neighbors.append(n)
+		if n.y == node.y - 1 and n.x == node.x:
+			neighbors.append(n)
+	return neighbors
+
 
 def mapCallback(occupancy):
 	global grid
@@ -65,7 +122,7 @@ def mapCallback(occupancy):
 if __name__=='__main__':
 	rospy.init_node('frontier_node')
 
-	global grid,nodes,frontPub
+	global grid,nodes,frontPub,frontier
 	grid = OccupancyGrid()
 	rospy.Subscriber('/map',OccupancyGrid, mapCallback)
 	frontPub = rospy.Publisher('front_color',GridCells, queue_size = 1)
