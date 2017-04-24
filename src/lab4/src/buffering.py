@@ -78,7 +78,9 @@ if __name__=='__main__':
 	grid = OccupancyGrid()
 	rospy.Subscriber('/map',OccupancyGrid, mapCallback)
 	bufferPub = rospy.Publisher('/buffermap',OccupancyGrid, queue_size = 1)
-	rospy.sleep(.5)
+
+	while not grid.data:
+		continue
 
 	print("building")
 	buildNodes()

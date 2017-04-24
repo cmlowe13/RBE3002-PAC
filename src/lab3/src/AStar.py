@@ -47,7 +47,7 @@ def reconstruct_path(node):
 	return path
 
 def astar(start, end):
-	global nodes,frontPub, closedPub,grid
+	global nodes,frontPub, closedPub
 	print(start.x,start.y,end.x,end.y)
 	closedSet = []
 	openSet = []
@@ -58,26 +58,26 @@ def astar(start, end):
 
 	while(openSet):
 		gridCells = GridCells()
-		gridCells.cell_width = grid.info.resolution
-		gridCells.cell_height = grid.info.resolution
+		gridCells.cell_width = 1
+		gridCells.cell_height = 1
 		gridCells.header.frame_id = 'map'
 		gridCells.cells = [];
 		for node in openSet:
 			p = Point()
-			p.x = node.x + .5*grid.info.resolution
-			p.y = node.y + .5*grid.info.resolution
+			p.x = node.x
+			p.y = node.y
 			p.z = 0
 			gridCells.cells.append(p)
 		frontPub.publish(gridCells)
 		gridCells = GridCells()
-		gridCells.cell_width = grid.info.resolution
-		gridCells.cell_height = grid.info.resolution
+		gridCells.cell_width = 1
+		gridCells.cell_height = 1
 		gridCells.header.frame_id = 'map'
 		gridCells.cells = [];
 		for node in closedSet:
 			p = Point()
-			p.x = node.x + .5*grid.info.resolution
-			p.y = node.y + .5*grid.info.resolution
+			p.x = node.x
+			p.y = node.y
 			p.z = 0
 			gridCells.cells.append(p)
 		closedPub.publish(gridCells)
@@ -129,8 +129,8 @@ def clickCallback(click):
 	elif state == 1:
 		path = astar(start,Node(int(click.point.x),int(click.point.y)))
 		gridCells = GridCells()
-		gridCells.cell_width = grid.info.resolution
-		gridCells.cell_height = grid.info.resolution
+		gridCells.cell_width = 1
+		gridCells.cell_height = 1
 		gridCells.header.frame_id = 'map'
 		gridCells.cells = [];
 		if path == 0:
@@ -139,16 +139,16 @@ def clickCallback(click):
 		else:
 			for node in path:
 				p = Point()
-				p.x = node.x + .5*grid.info.resolution
-				p.y = node.y + .5*grid.info.resolution
+				p.x = node.x
+				p.y = node.y
 				p.z = 0
 				gridCells.cells.append(p)
 			pathPub.publish(gridCells)
 			state = 2
 	elif state == 2:
 		gridCells = GridCells()
-		gridCells.cell_width = grid.info.resolution
-		gridCells.cell_height = grid.info.resolution
+		gridCells.cell_width = 1
+		gridCells.cell_height = 1
 		gridCells.header.frame_id = 'map'
 		gridCells.cells = [];
 		pathPub.publish(gridCells)
