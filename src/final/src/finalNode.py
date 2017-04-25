@@ -112,19 +112,104 @@ def getNeighbors(list,node):
 	return neighbors
 
 
+def reconstruct_path(node):
+	path = [node]
+	current = node
+	while hasattr(current,'cameFrom'):
+		path.append(current)
+		current = current.cameFrom
+	return path
+
+def astar(start, end):
+	global nodes,frontPub, closedPub
+	print(start.x,start.y,end.x,end.y)
+	closedSet = []
+	openSet = []
+	openSet.insert(0,start)
+	current = start
+	current.gCost = 0
+	current.setFCost(end)
+
+	while(openSet):
+		gridCells = GridCells()
+		gridCells.cell_width = 1
+		gridCells.cell_height = 1
+		gridCells.header.frame_id = 'map'
+		gridCells.cells = [];
+		for node in openSet:
+			p = Point()
+			p.x = node.x
+			p.y = node.y
+			p.z = 0
+			gridCells.cells.append(p)
+		frontPub.publish(gridCells)
+		gridCells = GridCells()
+		gridCells.cell_width = 1
+		gridCells.cell_height = 1
+		gridCells.header.frame_id = 'map'
+		gridCells.cells = [];
+		for node in closedSet:
+			p = Point()
+			p.x = node.x
+			p.y = node.y
+			p.z = 0
+			gridCells.cells.append(p)
+		closedPub.publish(gridCells)
+
+		lowest = 99999
+		for n in openSet:
+			if(n.setFCost(end)<=lowest):
+				print(n.x,n.y,n.gCost)
+				lowest = n.fCost
+				current = n
+		print("loop")
+		openSet = [n for n in openSet if not(n.x == current.x and n.y == current.y)]
+		if current.x == end.x and current.y == end.y:
+			return reconstruct_path(current)
+		neighbors = []
+		for n in nodes:
+			if n.x == current.x + 1 and n.y == current.y:
+				neighbors.append(n)
+			if n.x == current.x - 1 and n.y == current.y:
+				neighbors.append(n)
+			if n.y == current.y + 1 and n.x == current.x:
+				neighbors.append(n)
+			if n.y == current.y - 1 and n.x == current.x:
+				neighbors.append(n)
+		for n in neighbors:
+			if [item for item in closedSet if (item.x == n.x and item.y == n.y)]:
+				1+1
+			else:
+				n.setCameFrom(current)
+				n.gCost = current.gCost + 1
+				n.setFCost(end)		
+				openSet.append(n)
+		closedSet.append(current)
+
+	return 0
+
+
 def mapCallback(occupancy):
 	global grid
 	grid = occupancy
 	buildNodes()
-	getFront()
-	
 
 if __name__=='__main__':
-	rospy.init_node('frontier_node')
+	rospy.init_node('main_node')
 
 	global grid,nodes,frontPub,frontier
 	grid = OccupancyGrid()
-	rospy.Subscriber('/map',OccupancyGrid, mapCallback)
+	rospy.Subscriber('/buffermap',OccupancyGrid, mapCallback)
 	frontPub = rospy.Publisher('front_color',GridCells, queue_size = 1)
 
-	rospy.spin()
+	state = 0 # 0: spin, 1: blob frontier, 2: nav to blob, 3: drive nav path, 4: done
+
+	while not rospy.is_shutdown():
+		if state == 0:
+			if not spinRobot():
+				state = 1
+		elif state == 1:
+			if(grid.data)
+				buildNodes()
+				getFront()
+				blobFront()
