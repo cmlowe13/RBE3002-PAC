@@ -157,7 +157,6 @@ def clickCallback(click):
 		state = 0
 
 
-
 if __name__=='__main__':
 	rospy.init_node('astar_node')
 
