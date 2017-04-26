@@ -4,7 +4,7 @@ import rospy, numpy, math
 from nav_msgs.msg import OccupancyGrid
 from nav_msgs.msg import MapMetaData
 from nav_msgs.msg import GridCells, Path
-from geometry_msgs.msg import Point,PointStamped, PoseStamped
+from geometry_msgs.msg import Point,PointStamped, PoseStamped, PoseWithCovarianceStamped
 
 class Node:
 
@@ -188,21 +188,187 @@ def astar(start, end):
 
 	return 0
 
+def genWaypoints (gen_Path_rev):
+	
+	gen_pts = []
+	w_ori = []
+	gen_Path = list(reversed(gen_Path_rev))
+
+	prev_pts = gen_Path[0]
+	tmp_ctr = 0
+	for a, point in enumerate(gen_Path):
+		if a ==len(gen_Path) - 1:
+			gen_pts.append(gen_Path[-1])
+
+			q_t = quaternion_from_euler(0,0,0)
+			quaternion_h = Quaternion(*q_t)
+
+			w_ori.append(quaternion_h)
+		elif tmp_ctr == 3:
+			tmp_ctr = 0
+			gen_pts.append(point)
+
+			dx = point.x - prev_pts.x
+			dy = point.y - prev_pts.y
+			heading = (dx, dy)
+			th_heading = math.atan2(heading[1], heading[0])
+			q_t = quaternion_from_euler(0,0, th_heading)
+			quaternion_h = Quaternion(*q_t)
+
+			w_ori.append(quaternion_h)
+			prev_pts = point
+		else:
+			tmp_ctr += 1
+
+	path = Path()
+	for a in range(len(gen_pts)):
+		path.poses.append(PoseStamped(Header(), Pose(gen_pts[a], w_ori[a])))
+	return path
+
+def publishTwist(lin_vel, ang_vel):
+	global prev_twist
+	global nav_pub
+
+   twist_msg = Twist();                #Create Twist Message
+    if lin_vel == 0 and ang_vel == 0:
+        twist_msg.linear.x = (prev_twist.linear.x)/3
+        twist_msg.angular.z = (prev_twist.angular.z)/3
+        while twist_msg.linear.x > 0.05 and twist_msg.angular.z > 0.05:
+            twist_msg.linear.x = (prev_twist.linear.x)/3
+            twist_msg.angular.z = (prev_twist.angular.z)/3
+            prev_twist = twist_msg
+            nav_pub.publish(twist_msg)              #Send Message
+            rospy.sleep(rospy.Duration(0.2, 0))
+        twist_msg.linear.x = 0
+        twist_msg.angular.z = 0
+        nav_pub.publish(twist_msg)
+        prev_twist.linear.x = 0
+        prev_twist.angular.z = 0
+    else:
+        twist_msg.linear.x = (2*lin_vel + prev_twist.linear.x)/3
+        twist_msg.angular.z = (2*ang_vel + prev_twist.angular.z)/3
+        prev_twist = twist_msg
+        nav_pub.publish(twist_msg)    
+
+def navToPose(goal):
+    global pose
+
+    x0 = pose.pose.position.x        #Set origin
+    y0 = pose.pose.position.y
+    q0 = (pose.pose.orientation.x,
+            pose.pose.orientation.y,
+            pose.pose.orientation.z,
+            pose.pose.orientation.w)
+    x1 = goal.pose.position.x
+    y1 = goal.pose.position.y
+    q1 = (goal.pose.orientation.x,
+            goal.pose.orientation.y,
+            goal.pose.orientation.z,
+            goal.pose.orientation.w)
+    theta_tup_0 = euler_from_quaternion(q0)
+    theta0 = theta_tup_0[2]
+    theta_tup_1 = euler_from_quaternion(q1)
+    theta2 = theta_tup_1[2]
+
+    dx = x2 - x0
+    dy = y2 - y0
+    theta1 = math.atan2(dy, dx)
+
+    dtheta0 = theta1 - theta0
+    dtheta1 = theta2 - theta1
+    distance = math.sqrt(dx**2 + dy**2)
+
+    rotate(dtheta0)
+    driveStraight(0.1, distance)
+    rotate(dtheta1)
+
+def rotate(angle):
+    global odom_list
+    global pose
+
+    # This node was created using Coordinate system transforms and numpy arrays.
+    # The goal is measured in the turtlebot's frame, transformed to the odom.frame 
+    transformer = tf.TransformerROS()
+    rotation = numpy.array([[math.cos(angle), -math.sin(angle), 0],     #Create goal rotation
+                            [math.sin(angle),  math.cos(angle), 0],
+                            [0,                0,          	1]])
+
+    # Get transforms for frames
+    odom_list.waitForTransform('odom', 'base_footprint', rospy.Time(0), rospy.Duration(4.0))
+    (trans, rot) = odom_list.lookupTransform('odom', 'base_footprint', rospy.Time(0))
+    T_o_t = transformer.fromTranslationRotation(trans, rot)
+    R_o_t = T_o_t[0:3,0:3]
+
+    # Setup goal matrix
+    goal_rot = numpy.dot(rotation, R_o_t)
+    goal_o = numpy.array([[goal_rot[0,0], goal_rot[0,1], goal_rot[0,2], T_o_t[0,3]],
+                          [goal_rot[1,0], goal_rot[1,1], goal_rot[1,2], T_o_t[1,3]],
+                          [goal_rot[2,0], goal_rot[2,1], goal_rot[2,2], T_o_t[2,3]],
+                          [0,             0,             0,             1]])
+
+   # Continues creating and matching coordinate transforms.
+    done = False
+    while (not done and not rospy.is_shutdown()):
+        (trans, rot) = odom_list.lookupTransform('odom', 'base_footprint', rospy.Time(0))
+        state = transformer.fromTranslationRotation(trans, rot)
+        within_tolerance = abs((state - goal_o)) < .2
+        if (within_tolerance.all()):
+            publishTwist(0, 0)
+            done = True
+        else:
+            if (angle > 0):
+                publishTwist(0, 0.5)
+            else:
+                publishTwist(0, -0.5)
+
+def driveStraight(speed, distance):
+    global pose
+
+    x0 = pose.pose.position.x   #Set origin
+    y0 = pose.pose.position.y
+
+    done = False
+    while (not done and not rospy.is_shutdown()):
+        x1 = pose.pose.position.x
+        y1 = pose.pose.position.y
+        d = math.sqrt((x1 - x0)**2 + (y1 - y0)**2)      #Distance formula
+        if (d >= distance):
+            publishTwist(0, 0)
+            done = True
+        else:
+            publishTwist(speed, 0)
+
+def readOdom(msg):
+    global pose
+    global odom_tf
+
+    pose = msg.pose
+    geo_quat = pose.pose.orientation
+    odom_tf.sendTransform((pose.pose.position.x, pose.pose.position.y, 0),
+                        (pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z, pose.pose.orientation.w),
+                        rospy.Time.now(),
+                        "base_footprint","odom")
 
 def mapCallback(occupancy):
 	global grid
 	grid = occupancy
 	buildNodes()
 
+def setPose(est_pose):
+	global pose
+	pose = est_pose
+
 if __name__=='__main__':
 	rospy.init_node('main_node')
 
-	global grid,nodes,frontPub,frontier
+	global grid,nodes,frontPub,frontier,blobs,pose
 	grid = OccupancyGrid()
 	rospy.Subscriber('/buffermap',OccupancyGrid, mapCallback)
+	rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped,setPose)
 	frontPub = rospy.Publisher('front_color',GridCells, queue_size = 1)
 
-	state = 0 # 0: spin, 1: blob frontier, 2: nav to blob, 3: drive nav path, 4: done
+	state = 0 # 0: spin, 1: blob frontier, 2: nav to blob,  3: done
+	i_waypoints = 0
 
 	while not rospy.is_shutdown():
 		if state == 0:
@@ -212,4 +378,27 @@ if __name__=='__main__':
 			if(grid.data)
 				buildNodes()
 				getFront()
+				if len(frontier) == 0:
+					state = 3
+					continue
 				blobFront()
+				state = 2
+		elif state == 2:
+			heavyBlob = None
+			heaviest = 0
+			for blob in blobs:
+				if(blob.size > heaviest):
+					heavyBlob = blob
+					heaviest = blob.size
+			path = astar(Node(pose.x,pose.y,0),Node(heavyBlob.getCentroid()[0],heavyBlob.getCentroid()[1]))
+			wpoints = genWaypoints(path)
+			if i_waypoints > len(wpoints)-1:
+				i_waypoints = 0
+			else:
+				navToPose(wpoints[i_waypoints])
+				i_waypoints = i_waypoints + 1
+			state = 1
+		elif state == 3:
+			print("done")
+			break
+
